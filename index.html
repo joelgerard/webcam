@@ -1,0 +1,156 @@
+<html>
+
+<body>
+    <button onclick="share()" value="Share">Share</button>
+    <button onclick="draw()" value="Share">Draw</button>
+    <br />
+    <video id="webcam" autoplay></video>
+    <video id="screen" width="200px" autoplay></video>
+
+    <!-- <canvas id="canvas1" width="380" height="640"></canvas> -->
+    <canvas id="canvas1" width="1000" height="1000"></canvas>
+
+
+    <script>
+        let mediaStream = null;
+        let webcam = document.getElementById("webcam");
+        let screen = document.getElementById("screen");
+        let webcamStream = null;
+
+        const videoConstraints = { video: true };
+        camera = navigator.mediaDevices.getUserMedia(videoConstraints).then(stream => {
+            webcamStream = stream;
+            webcam.srcObject = stream;
+
+            // TODO: Remove
+            screen.srcObject = stream
+            screenStream = stream;
+        });
+
+
+        function share() {
+
+            try {
+                mediaStream = navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: "always"
+                    },
+                    audio: false
+                }).then(stream => {
+                    screenStream = stream;
+                    screen.srcObject = stream;
+                });
+            } catch (ex) {
+                console.log("Error occurred", ex);
+            }
+        }
+
+        function draw() {
+
+            const canvas = document.getElementById("canvas1");
+            ctx = canvas.getContext("2d");
+            ctx.fillStyle = "blue";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            wcSettings = webcamStream.getVideoTracks()[0].getSettings();
+            ssSettings = screenStream.getVideoTracks()[0].getSettings();
+
+            console.log(`Webcam is ${wcSettings.width} x ${wcSettings.height}`);
+            console.log(`ss is ${ssSettings.width} x ${ssSettings.height}`);
+            
+            // Screenshare: crop and scale.
+            // Take 10% off the edges.
+            ssCrop = ssSettings.width * 0.1;
+            newSSWidth = ssSettings.width - (ssCrop * 2);
+            // The width will be scaled to the output resolution.
+            // Scale the height proportionally.
+            ssScale = newSSWidth / targetWidth;
+            newSSHeight = ssSettings.height/ssScale;
+            // Position it at the bottom of the screen.
+            ssX = targetHeight - newSSHeight;
+            console.log(`newSSHeight is ${newSSHeight}  is ${ssX}`);
+
+            // Webcam: crop and scale.
+
+            // Fill the rest of the image with webcam.
+            wcTargetHeight = targetHeight-newSSHeight;
+            wcScale = wcSettings.height / wcTargetHeight;
+            
+            // The height is fixed. Scale the width
+            // proportionally.
+            newWCWidth = wcSettings.width / wcScale;
+            const excessWidth = newWCWidth - targetWidth;
+            const scaledExcessWidth = excessWidth * wcScale;
+            
+            // If this new width is wider than the target width, 
+            // we'll crop it. But the crop is done on the original
+            // image before scaling.
+            wcCrop = scaledExcessWidth/2; 
+
+            console.log(`
+            wcTargetHeight,${wcTargetHeight}\n
+            wcScale,${wcScale}\n
+            newWCWidth,${newWCWidth}\n
+            wcWidth,${wcSettings.width}\n
+            wcHeight,${wcSettings.height}\n
+            excessWidth,${excessWidth}\n
+            wcCrop,${wcCrop}\n
+            `);
+
+            
+
+            console.log(`newSSHeight is ${newSSHeight}  is ${ssX}`);
+
+
+            
+            update();
+        }
+
+        const targetHeight = 640; //1920;
+        const targetWidth = 360; //1080;
+        // Take 20% of the screen for webcam.
+        const targetWebcamHeight = targetHeight * 0.2;
+
+        function update() {
+            // Trying to get IL resolution of 1080 x 1920.
+
+
+
+            // TODO: Is webcam video vertical or horizontal.
+
+            // crop off 20% off the sides
+
+            // drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
+
+
+            // const ratio = (webcam.width / (cropWidth * 2));
+
+            // Draw webcam.
+            ctx.drawImage(webcam, 
+                // Crop n% off the left.
+                wcCrop,0,
+                // Now crop the right by only selecting a certain width.
+                // Grab the whole height.
+                wcSettings.width-(wcCrop*2),wcSettings.height,
+
+                // Next we scale this
+                0,0,targetWidth,wcTargetHeight);
+
+            // Draw screenshare
+            ctx.drawImage(screen,
+                // Crop n% off the left.
+                ssCrop, 0,
+                // Now crop the right by only selecting a certain width.
+                // Grab the whole height.
+                newSSWidth, ssSettings.height,
+
+                // Next we scale this
+                0, ssX, targetWidth, ssSettings.height / ssScale);
+
+            requestAnimationFrame(update); // wait for the browser to be ready to present another animation fram.       
+        }
+
+        window.setTimeout(draw, 500);
+    </script>
+</body>
+
+</html>
